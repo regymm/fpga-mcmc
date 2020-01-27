@@ -2,13 +2,13 @@
 #include <time.h>
 #include <stdlib.h>
 
-#define N 100000000
+#define N 4200000000
 
 int main(int argc, char* argv[])
 {
 	srand((unsigned)time(0));
-	int pi_no = 0;
-	int i;
+	unsigned int pi_no = 0;
+	unsigned int i;
 	for(i = 0; i < N; i++) {
 		double random1, random2;
 		random1 = (double) rand() / RAND_MAX;
