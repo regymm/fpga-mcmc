@@ -1,6 +1,4 @@
-## mcPi test
-
----
+## mcPi - Monte Carlo calculation of Pi
 
 ### CPU (i7-8550u Linux)
 
@@ -24,7 +22,7 @@ one result per three clocks
 
 (new)
 
-### FPGA (ZYNQ 020 on board PYNQ-Z1)
+### FPGA (xc7z020 on board PYNQ-Z1)
 
 refined design
 
@@ -55,7 +53,7 @@ True
 
 **Block Design**
 
-- You can see (left to right) clocking wizard, 16 mc_top calculation core, adders, ZYNQ ps,  AXI interconnect, custom AXI IP, outputs LED indicators)
+- You can see (left to right) clocking wizard, 16 mc_top calculation core, adders, ZYNQ ps,  AXI interconnect, custom AXI IP for PS/PL comm, outputs LED indicators)
 
 ![](./src/mcpi-bd.png)
 
