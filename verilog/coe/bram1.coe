@@ -1,0 +1,2 @@
+memory_initialization_radix=16;
+memory_initialization_vector=F32767 F32766 F32765 F32765 F32764 F32763 F32762 F32761 F32760;
