@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 // Path Integral Harmonic Oscillator
-module piho_top
+module piho_top_old
 (
 input clk,
 input rst,

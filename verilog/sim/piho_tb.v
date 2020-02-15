@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module piho_testbench();
+module piho_old_testbench();
 
 // reg clk;
 // reg [31:0]addr = 0;

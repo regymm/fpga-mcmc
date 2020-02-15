@@ -17,6 +17,12 @@ double mass = 1.;
 double hb = 1.;
 double omega = 1.;
 
+double x2sum = 0.;
+bool recording = 0;
+
+int acc = 0;
+int rej = 0;
+
 //default_random_engine  seed;
 //uniform_real_distribution<double> ran1(-1., 1.);
 //uniform_real_distribution<double> ran2(0., 1.);
@@ -101,15 +107,13 @@ double Path::CalcAction()
 class MChain {
 public:
     MChain() {
-        this->chain = nullptr;
     }
     MChain(double delta, int Nconf, int Ndump, int Nskip, const Path& initi) {
         this->delta = delta;
         this->Nconf = Nconf;
         this->Ndump = Ndump;
         this->Nskip = Nskip;
-        this->chain = new Path[Nconf];
-        this->chain[0] = initi;
+	this->chain0 = initi;
         // and use a and N in initi as Path config
         this->path_N = initi.N;
         this->path_a = initi.a;
@@ -117,11 +121,8 @@ public:
         for(int i = 0; i < path_N; i++) t_iter.push_back(i);
     }
     ~MChain() {
-        delete [] chain;
-        chain = nullptr;
     }
     // let the Chain process!
-    void Run();
     void Run2();
     void Result();
     void Corr();
@@ -137,7 +138,7 @@ public:
     int path_N;
     double path_a;
     // An array of pathes in the Markov Chain
-    Path* chain;
+    Path chain0;
     vector<int> t_iter;
 };
 
@@ -196,8 +197,8 @@ void MChain::Run2() {
     __m256 _a_expres = _mm256_add_ps(.5 * _a, _a_rev);
     // Generate a random seq of 1 to N
     for(int i = 0; i < Nconf - 1; i++) {
+	if (i == Ndump) recording = 1;
 //        cout << "--" << endl;
-        chain[i + 1] = chain[i];
         // need to replaced by std::shuffle instead
         // If no need to reshuffle, then parallelism is ready
         for(int p = 0; p < 3; p++) {
@@ -216,10 +217,10 @@ void MChain::Run2() {
                     int posm = kk;
                     int posh = kk + 1;
                     arr[bb] = ranm1p1();
-                    arr1[bb] = chain[i + 1].x[posm];
+                    arr1[bb] = chain0.x[posm];
                     // minus here!
-                    arr0[bb] = -chain[i + 1].x[posl];
-                    arr2[bb] = -chain[i + 1].x[posh];
+                    arr0[bb] = -chain0.x[posl];
+                    arr2[bb] = -chain0.x[posh];
                 }
                 __m256 _ranm1p1 = _mm256_load_ps(arr);
 //                _mm256_store_ps(arr7, _ranm1p1);
@@ -247,7 +248,8 @@ void MChain::Run2() {
 //                    cout << exp(-arr3[bb]) << endl;
                     if (ran0p1() < exp(-arr1[bb]))
 //                        cout << arr4[bb] << endl;
-                        chain[i + 1].x[kk] += arr2[bb];
+                        chain0.x[kk] += arr2[bb];
+		    if (recording) x2sum += SQR(chain0.x[kk]);
                 }
 //                delete [] arr;
 //                delete [] arr0;
@@ -261,50 +263,16 @@ void MChain::Run2() {
                 int posl = (k == 0 ? path_N-1 : k - 1);
                 int posm = k;
                 int posh = (k == path_N-1 ? 0 : k + 1);
-                double x00 = chain[i + 1].x[posl];
-                double x01 = chain[i + 1].x[posm];
-                double x02 = chain[i + 1].x[posh];
+                double x00 = chain0.x[posl];
+                double x01 = chain0.x[posm];
+                double x02 = chain0.x[posh];
                 double path_a_rev = 1. / path_a;
                 double xs = x01 + x01 - x00 - x02;
-                if (ran0p1() < exp(-inc * ((.5 * path_a + path_a_rev) * inc + \
-                    path_a * x01 + path_a_rev * xs))) chain[i + 1].x[k] += inc;
+                if (ran0p1() < exp(-inc * ((.5 * path_a + path_a_rev) * inc + path_a * x01 + path_a_rev * xs)))
+			chain0.x[k] += inc;
+	        if (recording) x2sum += SQR(chain0.x[k]);
             }
         }
-    }
-}
-// With optimization
-void MChain::Run() {
-    // Generate a random seq of 1 to N
-    for(int i = 0; i < Nconf - 1; i++) {
-        chain[i + 1] = chain[i];
-        // need to replaced by std::shuffle instead
-        // If no need to reshuffle, then parallelism is ready
-//        random_shuffle(t_iter.begin(), t_iter.end());
-            for(int j = 0; j < path_N; j+=1) {
-//            int k = t_iter[j];
-                int k = j;
-                double inc = delta * ranm1p1();
-                int posl = (k == 0 ? path_N-1 : k - 1);
-                int posm = k;
-                int posh = (k == path_N-1 ? 0 : k + 1);
-                double x00 = chain[i + 1].x[posl];
-                double x01 = chain[i + 1].x[posm];
-                double x02 = chain[i + 1].x[posh];
-                double path_a_rev = 1. / path_a;
-                // this optim may have been done by compiler
-                double xs = x01 + x01 - x00 - x02;
-                // reading the asm code, their is 5 mul command, which is nearly optimum
-//                cout <<  exp(-inc * ((.5 * path_a + path_a_rev) * inc + path_a * x01 + path_a_rev * xs)) << endl;
-                if (ran0p1() < exp(-inc * ((.5 * path_a + path_a_rev) * inc + \
-                path_a * x01 + path_a_rev * xs))) {
-                    // accept
-                    chain[i + 1].x[k] += inc;
-//                    cout << inc << endl;
-                }
-                else {
-                    // reject
-                }
-            }
     }
 }
 // Naive Calculation
@@ -337,51 +305,57 @@ void MChain::Run() {
 //}
 
 void MChain::Result(){
-    double avg = 0;
+    //double avg = 0;
     int Ncnt = (Nconf - Ndump) / Nskip;
-//    cout << Ncnt << endl;
-    for(int i = Ndump; i < Nconf; i += Nskip) {
-        avg += chain[i].xsqr();
-    }
-    avg /= Ncnt;
-    cout << "Expectation value " << avg << endl;
-    double err = 0;
-    for(int i = Ndump; i < Nconf; i += Nskip) {
-	//err += SQR(chain[i].xsqr());
-	err += SQR(chain[i].xsqr() - avg);
-	//for(int j = 0; j < path_N; j++)
-	    //err += SQR(SQR(chain[i].x[j]) - avg);
-    }
-    //err /= (Ncnt - 1) * Ncnt * path_N;
-    err /= (Ncnt - 1) * Ncnt;
-    //err /= Ncnt * path_N;
-    err = sqrt(err);
-    cout << "Err: " << err << endl;
-    // serial calculation of Err
-    double errs = 0;
-    double avgs = 0;
-    // the serial part
-    for(int i = Ndump; i < Nconf; i += Nskip) {
-        //for(int j = 0; j < path_N; j++) {
-            //errs += SQR(SQR(chain[i].x[j]));
-            //avgs += SQR(chain[i].x[j]);
-        //}
-	avgs += chain[i].xsqr();
-	errs += SQR(chain[i].xsqr());
-        //errs += SQR(SQR(chain[i].x[0]));
-        //avgs += SQR(chain[i].x[0]);
-    }
-    // some final processing
-    //avgs /= Ncnt * (path_N + 1);
-    avgs /= Ncnt;
-    // errs /= Ncnt * (Ncnt - 1) * (path_N + 1);
-    //errs /= Ncnt * (path_N + 1);
-    errs /= Ncnt;
-    //errs = sqrt((errs - SQR(avgs)) / (Ncnt - 1));
-    errs = sqrt((errs - SQR(avgs)) / (Ncnt - 1));
-    cout << "Avgs: " << avgs << endl;
-    cout << "Errs: " << errs << endl;
-    cout << Ncnt << " " << path_N << endl;
+////    cout << Ncnt << endl;
+    //for(int i = Ndump; i < Nconf; i += Nskip) {
+        //avg += chain[i].xsqr();
+    //}
+    //avg /= Ncnt;
+    //cout << "Expectation value " << avg << endl;
+    ////double err = 0;
+    ////for(int i = Ndump; i < Nconf; i += Nskip) {
+	//////err += SQR(chain[i].xsqr());
+	////err += SQR(chain[i].xsqr() - avg);
+	//////for(int j = 0; j < path_N; j++)
+	    //////err += SQR(SQR(chain[i].x[j]) - avg);
+    ////}
+    //////err /= (Ncnt - 1) * Ncnt * path_N;
+    ////err /= (Ncnt - 1) * Ncnt;
+    //////err /= Ncnt * path_N;
+    ////err = sqrt(err);
+    ////cout << "Err: " << err << endl;
+    ////// serial calculation of Err
+    ////double errs = 0;
+    ////double avgs = 0;
+    ////// the serial part
+    ////for(int i = Ndump; i < Nconf; i += Nskip) {
+        //////for(int j = 0; j < path_N; j++) {
+            //////errs += SQR(SQR(chain[i].x[j]));
+            //////avgs += SQR(chain[i].x[j]);
+        //////}
+	////avgs += chain[i].xsqr();
+	////errs += SQR(chain[i].xsqr());
+        //////errs += SQR(SQR(chain[i].x[0]));
+        //////avgs += SQR(chain[i].x[0]);
+    ////}
+    //////for(int i = 0; i < path_N; i++)
+	    //////printf("%f ", chain[Nconf - 1].x[i]);
+    //////printf("\n");
+    ////// some final processing
+    //////avgs /= Ncnt * (path_N + 1);
+    ////avgs /= Ncnt;
+    ////// errs /= Ncnt * (Ncnt - 1) * (path_N + 1);
+    //////errs /= Ncnt * (path_N + 1);
+    ////errs /= Ncnt;
+    //////errs = sqrt((errs - SQR(avgs)) / (Ncnt - 1));
+    ////errs = sqrt((errs - SQR(avgs)) / (Ncnt - 1));
+    ////cout << "Avgs: " << avgs << endl;
+    ////cout << "Errs: " << errs << endl;
+    //////cout << Ncnt << " " << path_N << endl;
+    //////cout << "Acc: " << acc << endl;
+    //////cout << "Rej: " << rej << endl;
+    cout << "Avg: " << x2sum / (Ncnt * (path_N + 1)) << endl;
 }
 
 void Randomize() {
@@ -415,28 +389,6 @@ void Free_SSE() {
 
 void MChain::Corr()
 {
-    int tmax = 100;
-    auto C = new double[tmax];
-    int Ncnt = (Nconf - Ndump) / Nskip;
-    for(int t = 0; t < tmax; t++) {
-        double corr = 0;
-        for(int m = Ndump; m < Nconf; m += Nskip) {
-            double xx = 0.;
-            for(int t0 = 0; t0 < path_N - tmax; t0++) {
-                xx += chain[m].x[t0] * chain[m].x[t0 + t];
-
-            }
-            xx /= (path_N - tmax);
-            corr += xx;
-        }
-        corr /= Ncnt;
-        C[t] = corr;
-        cout << C[t] << endl;
-    }
-    cout << "--" << endl;
-    for(int t = 0; t < tmax; t++) {
-        cout << log(fabs(C[t])) << endl;
-    }
 }
 
 void AVX_Test()
@@ -469,35 +421,19 @@ int main(int argc, char* argv[]) {
     Randomize();
     Init_SSE();
     // initialize a path, cold start
-    //Path initi = Path(512, 0.125, 0);
-    Path initi = Path(500, 0.1, 0);
+    Path initi = Path(2048, 0.125, 0);
     for(int i = 0; i < initi.N; i++) initi.x[i] = 0;
     cout << "Cold start initialized." << endl;
     // construct: delta, Nconf, Ndump, Nskip, start_path
     // 500M memory used in the default data scale 500, 0.2, 130000
-    MChain mchain = MChain(0.2, 130000, 10000, 600, initi);
-    //MChain mchain = MChain(0.1, 200000, 50000, 1, initi);
-    //MChain mchain = MChain(0.125, 200000, 50000, 1, initi);
-    if (argc == 2 && strcmp(argv[1], "SIMD") == 0) {
-        cout << "Run with SIMD..." <<endl;
-        mchain.Run2();
-    }
-    else {
-        cout << "Run without SIMD...";
-        mchain.Run();
-    }
+    MChain mchain = MChain(0.125, 500000, 100000, 1, initi);
+    cout << "Run with SIMD..." <<endl;
+    mchain.Run2();
+    cout << "Time: " << (double) (clock() - clock_timer) / CLOCKS_PER_SEC << endl;
     cout << "Markov chain finished running." << endl;
     mchain.Result();
     cout << "Result generated." << endl;
-    // mchain.Corr();
-    // cout << "Correlation calculated." << endl;
     Free_SSE();
-//    for(int i = 0; i < mchain.Nconf; i++) {
-//        for(int j = 0; j < mchain.chain[0].N; j++) {
-//            cout << mchain.chain[i].x[j] << endl;
-//        }
-//        cout << endl << endl;
-//    }
     cout << "Program end." << endl;
     cout << "Time: " << (double) (clock() - clock_timer) / CLOCKS_PER_SEC << endl;
     return 0;

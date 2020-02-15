@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module piho_unit_testbench();
+module piho_unit_0_testbench();
 
 
 reg clk;
@@ -10,9 +10,8 @@ reg [31:0]before = 32'h000000;
 reg [31:0]after = 32'h0000000;
 reg [15:0]seed1 = 16'b1100011011100011;
 reg [13:0]seed2 = 14'b10101101111011;
-reg [31:0]totallooptimes = 70;
-reg [31:0]warmupskip = 40;
-// reg [31:0]warmupskip = 1;
+reg [31:0]totallooptimes = 700;
+reg [31:0]warmupskip = 1;
 reg [31:0]a = 32'h00002000;
 reg [31:0]arev = 32'h00080000;
 wire [31:0]looptimes;
@@ -22,6 +21,7 @@ wire [63:0]x2sum;
 // wire [31:0]x4sum;
 
 wire process_odd;
+wire process_odd_wait;
 wire process_even;
 wire writeback_odd;
 wire writeback_even;
@@ -57,11 +57,8 @@ wire [31:0]xreal;
 wire [31:0]xmreal;
 wire [31:0]xpreal;
 
-wire [31:0]mul_in_a;
-wire [31:0]mul_o;
-
 // piho_unit_0 pu_inst
-piho_unit pu_inst
+piho_unit_0 pu_inst
 (
     .clk(clk),
     .rst(rst),
@@ -84,6 +81,7 @@ piho_unit pu_inst
 
     .process_odd(process_odd),
     .process_even(process_even),
+    .process_odd_wait(process_odd_wait),
     // .process_even_wait(process_even_wait),
     .writeback_odd(writeback_odd),
     .writeback_even(writeback_even),
@@ -118,9 +116,6 @@ piho_unit pu_inst
     // .xmreal(xmreal),
     // .xpreal(xpreal),
     // .xreal(xreal),
-
-    .mul_in_a(mul_in_a),
-    .mul_o(mul_o),
 
     .finish(finish)
 );
