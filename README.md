@@ -4,6 +4,9 @@ FPGA accelerated Markov Chain Monte Carlo. Project for computational physics cou
 - [mcPi](./reports/mcpi.md): Monte Carlo calculation of Pi
 - [PIHO](reports/piho.md): Path Integral Harmonic Oscillator simulation using Markov Chain Monte Carlo. 7x speedup over CPU. 
 
+My talk at [LUG@USTC](https://lug.ustc.edu.cn): [Slides](https://ftp.lug.ustc.edu.cn/weekly_party/2020.03.22_PYNQ_Introduction/PYNQ%E5%BC%80%E5%8F%91%E7%AE%80%E4%BB%8B%E4%B8%8E%E5%BA%94%E7%94%A8.pdf), [Video](https://ftp.lug.ustc.edu.cn/weekly_party/2020.03.22_PYNQ_Introduction/2020-03-22%2014-24-02.mp4). 
+
+
 
 
 **Directories:**
